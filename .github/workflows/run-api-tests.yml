@@ -1,0 +1,87 @@
+name: Run API Tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    name: Execute OpenLibrary API Tests
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up OpenJDK 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Verify Java Installation
+        run: |
+          echo "Java version:"
+          java -version
+          echo ""
+          echo "Java compiler version:"
+          javac -version
+
+      - name: Verify Maven Installation
+        run: |
+          echo "Maven version:"
+          mvn -version
+
+      - name: Build Project
+        run: mvn clean compile -DskipTests
+
+      - name: Run Tests
+        run: mvn clean test
+
+      - name: Test Results Summary
+        if: always()
+        run: |
+          echo "===========================================" 
+          echo "Test Execution Completed"
+          echo "==========================================="
+          
+      - name: Generate Allure Report
+        if: always()
+        run: mvn allure:report
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: target/surefire-reports/
+          retention-days: 30
+
+      - name: Upload Allure Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: target/allure-results/
+          retention-days: 30
+
+      - name: Upload Allure Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: target/site/allure-maven-plugin/
+          retention-days: 30
+
+      - name: Comment PR on Test Failure
+        if: failure()
+        run: |
+          echo "Tests failed! Check the test results in the artifacts section."
+          
+      - name: Comment PR on Test Success
+        if: success()
+        run: |
+          echo "All tests passed successfully!"
